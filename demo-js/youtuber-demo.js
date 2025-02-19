@@ -15,9 +15,18 @@ app.get('/', function (req, res){
 // 유튜버 전체 조회
 app.get("/youtubers", (req,res)=>{
     try{
-        let youtuber_json = {};
-        db.forEach((value, key) => {youtuber_json[key] = value});
-        res.json(youtuber_json);
+        var youtubers = {};
+
+        if(db.size > 0) {
+            db.forEach((value,key)=>{
+                youtubers[key] = value
+            })
+            res.json(youtubers);
+        } else {
+            res.status(404).json({
+                message : "조회할 유튜버가 없습니다."
+            })
+        }
     } catch(error){
         return res.status(500).json({ message: "서버와 연결에 실패하였습니다."})
     }
@@ -55,18 +64,25 @@ app.get('/youtubers/:id',(req,res)=>{
 
 app.post('/youtubers', (req, res) => {
     try {
-        let newYoutubers ={
-            channelTitle: req.body.channelTitle,
-            sub: 0,
-            videoNum: 0,
-        }
-    
-        const id = idx++;
-        db.set(id,newYoutubers)
+        const channelTitle = req.body.channelTitle;
+        if(channelTitle){
+            let newYoutubers ={
+                channelTitle: channelTitle,
+                sub: 0,
+                videoNum: 0,
+            }
         
-        res.send({
-            "message": `${db.get(id).channelTitle}님, 유튜버 생활을 응원합니다.`
-        })
+            const id = idx++;
+            db.set(id,newYoutubers)
+            
+            res.status(201).json({
+                "message": `${db.get(id).channelTitle}님, 유튜버 생활을 응원합니다.`
+            })
+        } else {
+            res.status(400).json({
+                "message": "올바른 정보를 입력해주세요"
+            })
+        }
     } catch(error){
         return res.status(500).json({ message: "서버와 연결에 실패하였습니다."})
     }
@@ -93,7 +109,7 @@ app.delete('/youtubers/:id', (req, res) => {
 // 전체 삭제
 app.delete('/youtubers', (req, res) => {
     try{
-        if (db.size >1){
+        if (db.size > 1){
             db.clear()
             // or 
             // db.forEach((a)=>{
