@@ -3,31 +3,32 @@ const app = express()
 
 app.listen(7777)
 
-app.use(express.json())
+let db = new Map();
+let idx = 1;
 
-app.all("*", (req,res)=>{
-    res.status(404).json({ message: "올바른 URL을 입력해주세요."});
-});
+app.use(express.json())
 
 // 로그인
 app.post("/login", (req, res)=>{
     try{
-        if (Object.keys(req.body) == 0) return res.status(401).json({ message: "입력한 값을 확인해주세요"})
-        const id = req.body.id;
-        const pw = req.body.pw;
+        isExist(req.body, res);
+        const {userId, password} = req.body;
+        let userInfo = {};
 
-        if (!id) res.status(401).json({message: "아이디를 입력해주세요"})
-        if (!pw) res.status(401).json({message: "비밀번호를 입력해주세요"})
+        if (!userId) return res.status(400).json({message: "아이디를 입력해주세요"})
+        if (!password) return res.status(400).json({message: "비밀번호를 입력해주세요"})
 
-        let userInfo = db.get(id);
-        if (userInfo){
-            if (userInfo.pw === pw){
-                res.status(200).json({message: `${userInfo.name}님 환영합니다.`})
-                // 메인페이지로 이동
-            }
+        db.forEach((value)=>{
+            if (value.userId===userId) return userInfo = value;
+        })
+
+        isExist(userInfo,res,"없는 아이디 입니다");
+        if (userInfo.password = password){
+            return res.status(200).json({message: `${userInfo.name}님 환영합니다.`})
         } else {
-            res.status(401).json({message: "없는 아이디 입니다"})
+            return res.status(401).json({message: "비밀번호가 틀렸습니다."})
         }
+        // 메인 페이지로 이동
     } catch {
         res.status(500).json({message: "서버와의 연결에 실패하였습니다."})
     }
@@ -37,24 +38,25 @@ app.post("/login", (req, res)=>{
 // 회원가입
 app.post("/join", (req, res)=>{
     try {
-        if (Object.keys(req.body) == 0) return res.status(401).json({ message: "입력한 값을 확인해주세요"})
-        const id = req.body.id;
+        isExist(req.body, res);
+        const id = idx++;
         const userInfo = {
-            pw : req.body.pw,
+            userId: req.body.userId,
+            password: req.body.password,
             name : req.body.name
         }
 
-        if (!id) return res.status(401).json({message: "아이디를 입력해주세요"})
-        if (!userInfo.pw) return res.status(401).json({message: "비밀번호를 입력해주세요"})
-        if (!userInfo.name) return res.status(401).json({message: "이름을 입력해주세요"})
+        if (!userInfo.userId) return res.status(400).json({message: "아이디를 입력해주세요"})
+        if (!userInfo.password) return res.status(400).json({message: "비밀번호를 입력해주세요"})
+        if (!userInfo.name) return res.status(400).json({message: "이름을 입력해주세요"})
+        
+        db.forEach((value)=>{
+            if (value.userId===userInfo.userId) return res.status(401).json({message: "이미 사용중인 아이디 입니다. 다시 입력해주세요"})
+        })
 
-        if (db.has(id)){
-            return res.status(401).json({message: "이미 사용중인 아이디 입니다. 다시 입력해주세요"})
-        } else {
-            db.set(id, userInfo)
-            return res.status(200).json({message: `${userInfo.name}님 회원가입을 환영합니다.`})
-            // 로그인 페이지로 이동
-        }
+        db.set(id, userInfo)
+        return res.status(200).json({message: `${userInfo.name}님 회원가입을 환영합니다.`})
+        // 로그인 페이지로 이동
     } catch {
         res.status(500).json({message: "서버 연결에 실패했습니다."})
     }
@@ -63,16 +65,15 @@ app.post("/join", (req, res)=>{
 app.route('/users/:id')
     .get((req,res)=>{
         try{
-            const id = req.params.id;
-            console.log(id);
+            let id = req.params.id;
+            id = parseInt(id)
 
             const userInfo = db.get(id);
             if (userInfo){
-                const resUserInfo = {
-                    id : id,
-                    name : userInfo.name
-                }
-                res.json(resUserInfo)
+                res.status(200).json({ 
+                    userId: userInfo.userId,
+                    name: userInfo.name
+                })
             } else {
                 res.status(404).json({ message: "회원 정보가 업습니다."})
             }
@@ -82,7 +83,8 @@ app.route('/users/:id')
     })
     .delete((req,res)=>{
         try {
-            const id = req.params.id;
+            let id = req.params.id;
+            id = parseInt(id)
                 
             const userInfo = db.get(id);
             if (userInfo){
@@ -97,4 +99,12 @@ app.route('/users/:id')
         }
     })
 
-let db = new Map();
+app.all("*", (req,res)=>{
+    res.status(404).json({ message: "올바른 URL을 입력해주세요."});
+});
+
+function isExist(obj, response, text="입력한 값을 확인해주세요"){
+    if (Object.keys(obj).length == 0) {
+        return response.status(400).json({ message: text})
+    }
+};
