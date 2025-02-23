@@ -1,17 +1,13 @@
 const express = require("express")
-const app = express()
-
-app.listen(7777)
+const router = express.Router()
 
 let db = new Map();
 let id = 1;
 
-app.use(express.json())
-
-app.route('/channels')
+router.route('/')
     // 채널 생성
     .post((req,res) =>{
-        if (req.body.channelTitle){
+        if (req.body.channelTitle && req.body.userId){
             db.set(id++, req.body)
 
             res.status(201).json({
@@ -26,18 +22,25 @@ app.route('/channels')
 
     // 채널 전체 조회
     .get((req,res) =>{
-        if (db.size){
-            let channels = []
+        let {userId} = req.body
+        let channels = []
+
+        if (db.size && userId){
             db.forEach((value)=>{
-                channels.push(value)
+                if (value.userId === userId) channels.push(value)
             })
-            res.status(200).json(channels);
-        } else{
-            res.status(404).json({message:"채널 정보를 찾을 수 없습니다."})
+            
+            if (channels.length){
+                res.status(200).json(channels);
+            } else {
+                notFoundChannels()
+            }
+        } else {
+            notFoundChannels()
         }
     })
 
-app.route('/channels/:id')
+router.route('/:id')
     // 채널 개별 수정
     .put((req,res) =>{
         isExist(req.body.channeltitle, res);
@@ -60,9 +63,7 @@ app.route('/channels/:id')
                 message: `${oldtitle}이 ${newTitle}로 수정되었습니다.`
             })
         } else {
-            res.status(400).json({
-                message: "채널 정보를 찾을 수 없습니다."
-            })
+            notFoundChannels()
         }
     })
 
@@ -78,9 +79,7 @@ app.route('/channels/:id')
                 message: `${channel.channelTitle}이 삭제되었습니다.`
             })
         } else {
-            res.status(400).json({
-                message: "채널 정보를 찾을 수 없습니다."
-            })
+            notFoundChannels()
         }
     })
 
@@ -93,9 +92,7 @@ app.route('/channels/:id')
         if (channel) {
             res.status(200).json(channel)
         } else {
-            res.status(400).json({
-                message: "채널 정보를 찾을 수 없습니다."
-            })
+            notFoundChannels()
         }
     })
 
@@ -104,3 +101,11 @@ function isExist(obj, response, text="입력한 값을 확인해주세요"){
         return response.status(400).json({ message: text})
     }
 };
+
+function notFoundChannels(){
+    res.status(400).json({
+        message: "채널 정보를 찾을 수 없습니다."
+    })
+}
+
+module.exports = router
